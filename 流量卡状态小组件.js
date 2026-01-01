@@ -171,10 +171,8 @@ async function main() {
     detailText.font = Font.regularSystemFont(10);
     detailText.textColor = Color.red();
   }
-
-  // ======================
+  
   // 输出小组件
-  // ======================
   if (config.runsInWidget) {
     Script.setWidget(widget);
   } else {
