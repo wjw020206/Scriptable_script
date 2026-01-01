@@ -3,6 +3,23 @@ const widget = new ListWidget();
 
 // 用户配置
 const CookieValue = ''; // 替换为你实际 Cookie
+const NOTIFICATION_KEY = 'traffic_card_last_notify_date'; // Keychain 存储键名
+
+// 检查今天是否已经通知过
+function hasNotifiedToday() {
+  if (Keychain.contains(NOTIFICATION_KEY)) {
+    const lastDate = Keychain.get(NOTIFICATION_KEY);
+    const today = new Date().toDateString();
+    return lastDate === today;
+  }
+  return false;
+}
+
+// 记录今天已通知
+function markNotifiedToday() {
+  const today = new Date().toDateString();
+  Keychain.set(NOTIFICATION_KEY, today);
+}
 
 // 获取流量信息
 const url = 'https://xjxjxj.iot889.com/app/client/card/get';
@@ -142,6 +159,16 @@ async function main() {
     const diffTime = expirationDate - currentTime;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+    // 剩余 2 天或更少时发送通知（每天只通知一次）
+    if (diffDays <= 2 && !hasNotifiedToday()) {
+      const notification = new Notification();
+      notification.title = '流量卡即将到期';
+      notification.body = '请充值下个月';
+      notification.sound = 'default';
+      await notification.schedule();
+      markNotifiedToday();
+    }
+
     const expireLabel =
       diffDays <= 2
         ? `剩余: ${diffDays} 天(请充值下个月)`
@@ -171,7 +198,7 @@ async function main() {
     detailText.font = Font.regularSystemFont(10);
     detailText.textColor = Color.red();
   }
-  
+
   // 输出小组件
   if (config.runsInWidget) {
     Script.setWidget(widget);
