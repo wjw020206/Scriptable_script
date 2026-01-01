@@ -163,7 +163,7 @@ async function main() {
     if (diffDays <= 2 && !hasNotifiedToday()) {
       const notification = new Notification();
       notification.title = '流量卡即将到期';
-      notification.body = '请充值下个月';
+      notification.body = '请充值';
       notification.sound = 'default';
       await notification.schedule();
       markNotifiedToday();
@@ -171,7 +171,7 @@ async function main() {
 
     const expireLabel =
       diffDays <= 2
-        ? `剩余: ${diffDays} 天(请充值下个月)`
+        ? `剩余: ${diffDays} 天(请充值)`
         : `剩余: ${diffDays} 天`;
     const expireText = widget.addText(expireLabel);
     expireText.font = Font.regularSystemFont(12);
