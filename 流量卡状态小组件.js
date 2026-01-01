@@ -30,11 +30,13 @@ widget.addSpacer(8); // 添加间隔符
 function createProgressBar(used, free, width = 150, height = 8) {
   const total = used + free;
   const usagePercentage = used / total;
+  const radius = height / 2; // 圆角半径为高度的一半，实现胶囊形状
 
   // 创建进度条容器
   const barStack = widget.addStack();
   // 设置进度条容器的子元素从左到右水平排列
   barStack.layoutHorizontally();
+  barStack.cornerRadius = radius;
 
   // 已使用（橙色）
   const usedPart = barStack.addStack(); // 在进度条容器中创建子容器
@@ -49,10 +51,10 @@ function createProgressBar(used, free, width = 150, height = 8) {
   return barStack;
 }
 
-// 截断小数函数（保留 digits 位，不四舍五入）
-function truncateDecimal(num, digits) {
+// 四舍五入函数（保留 digits 位小数）
+function roundDecimal(num, digits) {
   const factor = Math.pow(10, digits);
-  return Math.floor(num * factor) / factor;
+  return Math.round(num * factor) / factor;
 }
 
 // 刷新流量接口
@@ -105,10 +107,10 @@ async function main() {
     widget.addSpacer(6);
 
     // 流量计算（MB → GB，截断两位小数）
-    const usedGB = truncateDecimal(data.used / 1024, 2);
-    const freeGB = truncateDecimal(data.free / 1024, 2);
-    const totalGB = truncateDecimal((data.used + data.free) / 1024, 2);
-    const usagePercentage = truncateDecimal(
+    const usedGB = roundDecimal(data.used / 1024, 2);
+    const freeGB = roundDecimal(data.free / 1024, 2);
+    const totalGB = roundDecimal((data.used + data.free) / 1024, 2);
+    const usagePercentage = roundDecimal(
       (data.used / (data.used + data.free)) * 100,
       2
     );
