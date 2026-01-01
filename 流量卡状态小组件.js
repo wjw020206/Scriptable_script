@@ -159,8 +159,8 @@ async function main() {
     const diffTime = expirationDate - currentTime;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    // 剩余 2 天或更少时发送通知（每天只通知一次）
-    if (diffDays <= 2 && !hasNotifiedToday()) {
+    // 剩余 3 天或更少时发送通知（每天只通知一次）
+    if (diffDays <= 3 && !hasNotifiedToday()) {
       const notification = new Notification();
       notification.title = '流量卡即将到期';
       notification.body = '请充值';
@@ -170,12 +170,12 @@ async function main() {
     }
 
     const expireLabel =
-      diffDays <= 2
+      diffDays <= 3
         ? `剩余: ${diffDays} 天(请充值)`
         : `剩余: ${diffDays} 天`;
     const expireText = widget.addText(expireLabel);
     expireText.font = Font.regularSystemFont(12);
-    expireText.textColor = diffDays <= 2 ? Color.red() : Color.cyan();
+    expireText.textColor = diffDays <= 3 ? Color.red() : Color.cyan();
 
     widget.addSpacer(6);
 
