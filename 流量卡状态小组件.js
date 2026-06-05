@@ -4,6 +4,16 @@ const baseUrl = 'http://1.mywuliankj.cn'
 const CookieValue = '' // 替换为你实际 Cookie
 const NOTIFICATION_KEY = 'traffic_card_last_notify_date' // Keychain 存储键名
 
+// Scriptable 兼容：获取 hostname
+function getHostname(url) {
+  return url
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split(':')[0]
+}
+
+const host = getHostname(baseUrl)
+
 // 创建小组件
 const widget = new ListWidget()
 
@@ -32,7 +42,7 @@ request.headers = {
   'Accept-Language': 'zh-CN,zh;q=0.9',
   'Cache-Control': 'no-cache',
   Cookie: `APPLICATION_SESSION_NAME=${CookieValue}`,
-  Host: new URL(baseUrl).hostname,
+  Host: host,
   Pragma: 'no-cache',
   'Proxy-Connection': 'keep-alive',
   Referer: `${baseUrl}/wap/pages/home/home`,
@@ -92,7 +102,7 @@ async function refreshCardData() {
     'Accept-Language': 'zh-CN,zh;q=0.9',
     'Content-Type': 'application/json;charset=UTF-8',
     Cookie: `APPLICATION_SESSION_NAME=${CookieValue}`,
-    Host: new URL(baseUrl).hostname,
+    Host: host,
     Pragma: 'no-cache',
     'Proxy-Connection': 'keep-alive',
     Referer: `${baseUrl}/wap/pages/home/home`,
