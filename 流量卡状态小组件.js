@@ -124,7 +124,7 @@ function updateCookies(response) {
   saveCookies()
 }
 
-async function sendRequest(path, method = 'GET', body = null) {
+async function sendRequest(path, method = 'GET', body = null, cookieOverride = null) {
   const request = new Request(`${baseUrl}${path}`)
   request.method = method
   request.timeoutInterval = 20
@@ -141,7 +141,8 @@ async function sendRequest(path, method = 'GET', body = null) {
       : 'application/json;charset=UTF-8',
   }
   const cookie = cookieHeader()
-  if (cookie) request.headers.Cookie = cookie
+  // 即使为空也显式设置，避免沿用底层其他卡的默认 Cookie。
+  request.headers.Cookie = cookieOverride === null ? cookie : cookieOverride
   if (body !== null) request.body = body
 
   let text
@@ -204,10 +205,17 @@ async function login() {
     if (entry.status < 200 || entry.status >= 300) {
       throw new Error(`登录入口访问失败（HTTP ${entry.status}）`)
     }
-    // 入口可能只下发 CDN Cookie；匿名调用卡信息接口会创建应用会话。
-    // 这里预期可能收到 HTTP 400 / code 14，仍需保留它下发的 Cookie。
-    if (!cookies[SESSION_COOKIE]) {
-      await sendRequest('/app/client/card/get')
+    // 入口响应可能带回底层共享的旧会话，不能据此跳过初始化。
+    // 显式传入无效会话标识，要求服务器创建新会话，避免登录切换其他卡。
+    delete cookies[SESSION_COOKIE]
+    const bootstrapSession = `scriptable-new-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const otherCookies = cookieHeader()
+    const bootstrapCookie = [otherCookies, `${SESSION_COOKIE}=${bootstrapSession}`]
+      .filter(Boolean).join('; ')
+    const bootstrap = await sendRequest('/app/client/card/get', 'GET', null, bootstrapCookie)
+    cookieHeader()
+    if (!cookies[SESSION_COOKIE] || cookies[SESSION_COOKIE].value === bootstrapSession) {
+      throw new Error(`无法建立新会话（HTTP ${bootstrap.status}）`)
     }
     const result = await sendRequest('/app/card/login', 'POST', `card=${encodeURIComponent(card)}`)
     const response = requireSuccess(result, '登录失败')
@@ -228,14 +236,22 @@ async function login() {
 }
 
 async function requestWithSession(path) {
+  // 同一域名的多张卡可能被底层共享会话切换，卡号不匹配也需要重登。
+  const cardMismatch = result => path === '/app/client/card/get' &&
+    result.json && Number(result.json.code) === 0 && result.json.data &&
+    result.json.data.card != null && String(result.json.data.card) !== card
   let result = await sendRequest(path)
-  if (isSessionExpired(result)) {
+  if (isSessionExpired(result) || cardMismatch(result)) {
     // 每次运行最多自动重新登录一次，避免失败后无限重试。
-    if (hasRetriedLogin) throw new Error('登录状态失效，请稍后重试')
+    if (hasRetriedLogin) {
+      throw new Error(cardMismatch(result)
+        ? '会话卡号不匹配，请稍后重新运行' : '登录状态失效，请稍后重试')
+    }
     hasRetriedLogin = true
     await login()
     result = await sendRequest(path)
     if (isSessionExpired(result)) throw new Error('重新登录后会话仍然失效')
+    if (cardMismatch(result)) throw new Error('重新登录后卡号仍不匹配')
   }
   return requireSuccess(result, '接口请求失败')
 }
@@ -304,11 +320,24 @@ async function main() {
     if (!response) throw new Error('无返回数据')
 
     const data = response.data
-    if (!data || String(data.card) !== card ||
-        data.used == null || data.free == null ||
-        !Number.isFinite(Number(data.used)) || !Number.isFinite(Number(data.free)) ||
-        typeof data.expirationTime !== 'string') {
-      throw new Error('流量接口返回的数据不完整')
+    if (!data || typeof data !== 'object') {
+      throw new Error('流量接口未返回卡片数据')
+    }
+    if (String(data.card) !== card) {
+      throw new Error('返回卡号与配置不一致，请重新登录')
+    }
+    const invalidFields = []
+    for (const name of ['used', 'free']) {
+      if (data[name] == null || !Number.isFinite(Number(data[name]))) {
+        invalidFields.push(name)
+      }
+    }
+    if (typeof data.expirationTime !== 'string' ||
+        isNaN(new Date(data.expirationTime.replace(' ', 'T')).getTime())) {
+      invalidFields.push('expirationTime')
+    }
+    if (invalidFields.length) {
+      throw new Error(`流量数据异常：${invalidFields.join('、')}`)
     }
     data.used = Number(data.used)
     data.free = Number(data.free)
