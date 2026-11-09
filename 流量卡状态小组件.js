@@ -2,6 +2,7 @@
 const baseUrl = 'http://xj.mywuliankj.cn'
 // 用户配置
 const card = '' // 流量卡号，登录时使用
+const verify = '' // 手机尾号后四位，使用字符串保留开头的 0
 const NOTIFICATION_KEY = 'traffic_card_last_notify_date' // Keychain 存储键名
 
 // Scriptable 兼容：获取 hostname
@@ -197,6 +198,7 @@ function requireSuccess(result, message) {
 
 async function login() {
   if (!card.trim()) throw new Error('请先配置流量卡号 card')
+  if (!/^\d{4}$/.test(verify)) throw new Error('请配置手机尾号后四位 verify（4 位数字字符串）')
   delete cookies[SESSION_COOKIE]
   saveCookies()
   try {
@@ -217,7 +219,8 @@ async function login() {
     if (!cookies[SESSION_COOKIE] || cookies[SESSION_COOKIE].value === bootstrapSession) {
       throw new Error(`无法建立新会话（HTTP ${bootstrap.status}）`)
     }
-    const result = await sendRequest('/app/card/login', 'POST', `card=${encodeURIComponent(card)}`)
+    const body = `card=${encodeURIComponent(card)}&verify=${encodeURIComponent(verify)}`
+    const result = await sendRequest('/app/card/login', 'POST', body)
     const response = requireSuccess(result, '登录失败')
     if (!response.data || String(response.data.card) !== card) {
       throw new Error('登录返回的卡号不匹配')
